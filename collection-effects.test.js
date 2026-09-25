@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import * as T from 'three';
+import {CollectionEffects} from './collection-effects.js';
+const scene=new T.Scene(),effects=new CollectionEffects(scene,{glowTexture:null,labelTexture:null});
+const count=scene.children.length;
+for(let i=0;i<100;i++)effects.burst(new T.Vector3(i,2,0));
+assert.equal(scene.children.length,count,'Repeated pickups must reuse the effect pool');
+assert.equal(effects.pool.filter(e=>e.active).length,6);
+effects.update(.2);assert(effects.pool.every(e=>e.positions.every(Number.isFinite)),'Particles remain finite');
+effects.update(1);assert(effects.pool.every(e=>!e.active&&!e.label.visible&&!e.sparks.visible),'Effects expire cleanly');
+effects.burst(new T.Vector3());effects.reset();assert(effects.pool.every(e=>!e.active&&!e.halo.visible),'Restart clears effects');
+const gentle=new CollectionEffects(new T.Scene(),{glowTexture:null,labelTexture:null,reducedMotion:true});gentle.burst(new T.Vector3());assert(!gentle.pool[0].sparks.visible&&gentle.pool[0].label.visible,'Reduced motion retains collection feedback without particles');
+console.log('Collection effects passed: bounded pooling, finite particles, expiration, reset, reduced motion.');

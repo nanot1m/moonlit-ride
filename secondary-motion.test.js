@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {createSecondaryMotion} from './secondary-motion.js';
+const sim=createSecondaryMotion();
+for(let i=0;i<2400;i++)sim.step(1/120,{speed:22,acceleration:i%240<120?3:-5,lean:Math.sin(i/100)*.48,distance:i*.18});
+assert(sim.cloth.every(p=>Number.isFinite(p.x+p.y+p.z))&&sim.hair.every(p=>Number.isFinite(p.x+p.y+p.z)),'Simulation remains finite under maximum speed and alternating braking');
+assert(sim.cloth.filter(p=>p.pinned).every(p=>p.x===p.rx&&p.y===p.ry&&p.z===p.rz),'Waist stays attached');
+const stretch=links=>Math.max(...links.map(l=>Math.hypot(l.a.x-l.b.x,l.a.y-l.b.y,l.a.z-l.b.z)/l.length));
+assert(stretch(sim.links)<1.35,'Fabric should not tear or over-stretch');
+assert(stretch(sim.hairLinks)<1.2,'Braid length should remain constrained');
+assert(sim.hair[0].x===sim.hair[0].rx&&sim.hair[0].z===sim.hair[0].rz,'Braid root stays attached');
+for(let i=0;i<1200;i++)sim.step(1/120,{});
+const positions=sim.hair.map(p=>[p.x,p.y,p.z]);for(let i=0;i<120;i++)sim.step(1/120,{});
+assert(Math.max(...sim.hair.map((p,i)=>Math.hypot(p.x-positions[i][0],p.y-positions[i][1],p.z-positions[i][2])))<.03,'Braid settles after stopping');
+sim.reset();assert([...sim.cloth,...sim.hair].every(p=>p.x===p.rx&&p.py===p.ry&&p.z===p.rz),'Reset clears position and velocity');
+console.log('Secondary motion checks passed: finite motion, pinned waist/root, cloth/braid stretch, settling, reset.');

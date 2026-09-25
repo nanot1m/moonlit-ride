@@ -1,0 +1,20 @@
+{
+  "name": "moonlit-ride",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild game.js --bundle --format=esm --minify --outfile=bundle.js",
+    "start": "esbuild game.js --bundle --format=esm --outfile=bundle.js --servedir=. --serve=127.0.0.1:8765",
+    "test": "node physics.test.js && node route.test.js && node secondary-motion.test.js && node collection-effects.test.js && node firefly-layout.test.js && node boost-score.test.js",
+    "build:pages": "npm run build && node scripts/package-pages.mjs"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
