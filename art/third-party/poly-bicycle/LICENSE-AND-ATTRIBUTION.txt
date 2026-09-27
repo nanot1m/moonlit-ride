@@ -1,0 +1,6 @@
+Bicycle by Poly by Google
+Source: https://poly.pizza/m/5pBoRkAPQk6
+License: Creative Commons Attribution 3.0
+https://creativecommons.org/licenses/by/3.0/
+Adapted for Moonlit Ride: separated and fitted parts, new materials, smooth wheels and spokes, animated drivetrain, carrier and accessories.
+Original GLB is preserved in Bicycle.glb. SourceParts.blend contains its separated mesh islands.

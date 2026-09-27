@@ -1,0 +1,8 @@
+<linker>
+  <!-- CreatePrimitive adds these internally before Geometry removes the collider.
+       They have no direct C# references, so IL2CPP otherwise strips them. -->
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.BoxCollider" preserve="all" />
+    <type fullname="UnityEngine.SphereCollider" preserve="all" />
+  </assembly>
+</linker>

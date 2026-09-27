@@ -1,10 +1,16 @@
 # Moonlit Ride
 
+Play the [Unity WebGL edition](https://nanot1m.github.io/moonlit-ride/) or the [original Three.js edition](https://nanot1m.github.io/moonlit-ride/classic/). The Unity edition includes the anatomical rider, simulated skirt/braid, imported city bicycle, new coastal vegetation and three waterfront districts.
+
+## Unity development
+
+The first native Unity port lives in [`Unity/`](Unity/README.md). Open that directory with **Unity 6000.3.17f1**, then open `Assets/Scenes/MoonlitRide.unity` and press Play. It includes the riding loop, procedural coast/rider, pickups and row bonuses, booster, secondary motion, audio, and Windows build scripts. See the Unity README for controls, checks, and migration limits. The browser version below remains runnable independently.
+
 ## Continue on another computer
 
 Clone this repository, install Node.js 22+, then run `npm ci`, `npm test`, and `npm start`. Open http://127.0.0.1:8765. In Codex, open the cloned folder and ask it to read `HANDOFF.md` before continuing.
 
-Run `npm run build:pages` before committing updates; GitHub Pages serves `docs/` from `main`.
+GitHub Pages serves `docs/` from `main`. `npm run build:pages` packages the original browser game into `docs/classic/`. To publish the Unity edition, build `MoonlitRide.Editor.ProjectSetup.BuildWebGL` with Unity's Web Build Support module and `-buildTarget WebGL`, then run `npm run package:unity-pages`. See `Unity/README.md` for details.
 
 
 A standalone, stylized 3D browser-game prototype inspired by the supplied coastal cycling reference. Includes an endless winding waterfront, a bicycle and rider, illuminated houses, boats, lanterns, trees, and collectible fireflies. Geometry is procedural; this is an initial stylized prototype, not a reproduction of the reference's detailed art.

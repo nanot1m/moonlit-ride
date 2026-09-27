@@ -1,0 +1,202 @@
+{
+  "cases": [
+    {
+      "name": "auto/-0.12",
+      "slope": -0.12,
+      "mode": "auto",
+      "speed": 7.959134448001629,
+      "progress": 81.77047188956752,
+      "lateral": 0,
+      "lean": -0.001144191163701273,
+      "distance": 83.96517600181669,
+      "boost": 0
+    },
+    {
+      "name": "pedal/-0.12",
+      "slope": -0.12,
+      "mode": "pedal",
+      "speed": 10.829877724766638,
+      "progress": 98.60947289136655,
+      "lateral": 0,
+      "lean": -0.0021038483128417783,
+      "distance": 101.25613262880435,
+      "boost": 0
+    },
+    {
+      "name": "brake/-0.12",
+      "slope": -0.12,
+      "mode": "brake",
+      "speed": 0,
+      "progress": 5.754750680655799,
+      "lateral": 0,
+      "lean": -8.13656211671337e-22,
+      "distance": 5.909207108409594,
+      "boost": 0
+    },
+    {
+      "name": "coast/-0.12",
+      "slope": -0.12,
+      "mode": "coast",
+      "speed": 0,
+      "progress": 29.249510337659135,
+      "lateral": 0,
+      "lean": -2.4388909656500016e-12,
+      "distance": 30.034561703218472,
+      "boost": 0
+    },
+    {
+      "name": "turn/-0.12",
+      "slope": -0.12,
+      "mode": "turn",
+      "speed": 0.5950692106726003,
+      "progress": 33.246459279587704,
+      "lateral": 4.15,
+      "lean": -0.012424864701040239,
+      "distance": 34.461722306891495,
+      "boost": 0
+    },
+    {
+      "name": "boost/-0.12",
+      "slope": -0.12,
+      "mode": "boost",
+      "speed": 16.09857942771021,
+      "progress": 196.89180987604595,
+      "lateral": 0,
+      "lean": -0.004786023816545147,
+      "distance": 202.17634908460934,
+      "boost": 0
+    },
+    {
+      "name": "auto/0",
+      "slope": 0,
+      "mode": "auto",
+      "speed": 8.692982845276381,
+      "progress": 86.50841424264854,
+      "lateral": 0,
+      "lean": -0.0013614947399794208,
+      "distance": 88.22161846264672,
+      "boost": 0
+    },
+    {
+      "name": "pedal/0",
+      "slope": 0,
+      "mode": "pedal",
+      "speed": 11.449964227557192,
+      "progress": 102.99085058712166,
+      "lateral": 0,
+      "lean": -0.002349357187603889,
+      "distance": 105.03047137305069,
+      "boost": 0
+    },
+    {
+      "name": "brake/0",
+      "slope": 0,
+      "mode": "brake",
+      "speed": 0,
+      "progress": 6.958966055347496,
+      "lateral": 0,
+      "lean": -1.9443197506375177e-21,
+      "distance": 7.096780742129335,
+      "boost": 0
+    },
+    {
+      "name": "coast/0",
+      "slope": 0,
+      "mode": "coast",
+      "speed": 6.333962135233664,
+      "progress": 74.03099756067131,
+      "lateral": 0,
+      "lean": -0.000732538503255749,
+      "distance": 75.49710023452054,
+      "boost": 0
+    },
+    {
+      "name": "turn/0",
+      "slope": 0,
+      "mode": "turn",
+      "speed": 0.32016453841547454,
+      "progress": 31.667289808171414,
+      "lateral": 4.15,
+      "lean": -0.006823466212375255,
+      "distance": 32.619561736453925,
+      "boost": 0
+    },
+    {
+      "name": "boost/0",
+      "slope": 0,
+      "mode": "boost",
+      "speed": 16.710949956683,
+      "progress": 201.84068809501198,
+      "lateral": 0,
+      "lean": -0.005147035125806987,
+      "distance": 205.8379214466921,
+      "boost": 0
+    },
+    {
+      "name": "auto/0.12",
+      "slope": 0.12,
+      "mode": "auto",
+      "speed": 15.863411892011962,
+      "progress": 126.93810364247518,
+      "lateral": 0,
+      "lean": -0.004482382029543142,
+      "distance": 130.34509851027397,
+      "boost": 0
+    },
+    {
+      "name": "pedal/0.12",
+      "slope": 0.12,
+      "mode": "pedal",
+      "speed": 17.699331530227372,
+      "progress": 139.44710316497165,
+      "lateral": 0,
+      "lean": -0.005582020925281528,
+      "distance": 143.1898372312585,
+      "boost": 0
+    },
+    {
+      "name": "brake/0.12",
+      "slope": 0.12,
+      "mode": "brake",
+      "speed": 0,
+      "progress": 8.64962757661607,
+      "lateral": 0,
+      "lean": -7.708908878891009e-21,
+      "distance": 8.881781956713814,
+      "boost": 0
+    },
+    {
+      "name": "coast/0.12",
+      "slope": 0.12,
+      "mode": "coast",
+      "speed": 14.54973414630446,
+      "progress": 118.43595064888726,
+      "lateral": 0,
+      "lean": -0.003770914849010683,
+      "distance": 121.6147493267073,
+      "boost": 0
+    },
+    {
+      "name": "turn/0.12",
+      "slope": 0.12,
+      "mode": "turn",
+      "speed": 0.544573895993877,
+      "progress": 32.613480307780684,
+      "lateral": 4.15,
+      "lean": -0.011413081295393855,
+      "distance": 33.83021941624132,
+      "boost": 0
+    },
+    {
+      "name": "boost/0.12",
+      "slope": 0.12,
+      "mode": "boost",
+      "speed": 22.472137332211258,
+      "progress": 234.94427844291937,
+      "lateral": 0,
+      "lean": -0.009194194170848054,
+      "distance": 241.25013876306602,
+      "boost": 0
+    }
+  ]
+}

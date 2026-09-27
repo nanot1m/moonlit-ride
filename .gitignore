@@ -3,3 +3,19 @@ node_modules/
 .env
 .env.*
 *.log
+
+# Unity-generated caches and local builds
+Unity/[Ll]ibrary/
+Unity/[Tt]emp/
+Unity/[Oo]bj/
+Unity/[Ll]ogs/
+Unity/[Uu]ser[Ss]ettings/
+Unity/[Bb]uilds/
+Unity/.vs/
+Unity/*.csproj
+Unity/*.sln
+Unity/*.slnx
+Unity/MemoryCaptures/
+Unity/Recordings/
+
+*.blend1
