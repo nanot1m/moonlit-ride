@@ -10,7 +10,7 @@ namespace MoonlitRide
         {
             ColorUtility.TryParseHtmlString(hex, out var color);
             if (emission > 0) return new Material(Shader.Find("MoonlitRide/Glow")) { color = color * Mathf.Min(emission, 1.5f) };
-            var m = new Material(Shader.Find("Standard")) { color = color };
+            var m = new Material(Shader.Find("MoonlitRide/Painted")) { color = color };
             m.SetFloat("_Glossiness", .22f);
             return m;
         }

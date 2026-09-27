@@ -15,7 +15,7 @@ namespace MoonlitRide {
                 for(int i=0;i<slots.Length;i++) {
                     string key=slots[i].name;
                     if(!materials.TryGetValue(key,out var mat)) {
-                        mat=new Material(Shader.Find("Standard")){name=key,color=slots[i].color};
+                        mat=new Material(Shader.Find("MoonlitRide/Painted")){name=key,color=slots[i].color};
                         bool metal=key.Contains("chrome") || key.Contains("steel") || key.Contains("enamel");
                         mat.SetFloat("_Metallic",metal?.65f:0);mat.SetFloat("_Glossiness",metal?.55f:.22f);materials.Add(key,mat);
                     }

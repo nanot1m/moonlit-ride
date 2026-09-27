@@ -31,7 +31,7 @@ namespace MoonlitRide.Editor
             // Unity includes the font shader automatically through TextMesh/IMGUI.
             for (int i = included.arraySize - 1; i >= 0; i--)
                 if (included.GetArrayElementAtIndex(i).objectReferenceValue is Shader old && old.name == "GUI/Text Shader") { included.GetArrayElementAtIndex(i).objectReferenceValue = null; included.DeleteArrayElementAtIndex(i); }
-            foreach (string name in new[] { "Standard", "MoonlitRide/Water", "MoonlitRide/Glow", "MoonlitRide/Sky", "MoonlitRide/Fabric", "MoonlitRide/CoastalBloom", "MoonlitRide/Blouse", "MoonlitRide/Foliage", "MoonlitRide/CoastalGround" })
+            foreach (string name in new[] { "Standard", "MoonlitRide/Painted", "MoonlitRide/Water", "MoonlitRide/Glow", "MoonlitRide/Sky", "MoonlitRide/Fabric", "MoonlitRide/CoastalBloom", "MoonlitRide/Blouse", "MoonlitRide/Foliage", "MoonlitRide/CoastalGround" })
             {
                 var shader = Shader.Find(name); if (!shader) throw new Exception("Missing shader: " + name);
                 bool found = false; for (int i = 0; i < included.arraySize; i++) if (included.GetArrayElementAtIndex(i).objectReferenceValue == shader) found = true;

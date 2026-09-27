@@ -17,7 +17,7 @@ namespace MoonlitRide {
                     string key=slots[i].name.Replace(" (Instance)","");
                     if(!materials.TryGetValue(key,out var mat)) {
                         bool foliage=key.Contains("Leaves") || key=="Grass";
-                        mat=new Material(Shader.Find(foliage?"MoonlitRide/Foliage":"Standard"));mat.name=key;
+                        mat=new Material(Shader.Find(foliage?"MoonlitRide/Foliage":"MoonlitRide/Painted"));mat.name=key;
                         mat.mainTexture=Resources.Load<Texture2D>("Nature/"+(key.StartsWith("Rock")?"Rocks":key));
                         if(!mat.mainTexture) throw new System.Exception("Missing nature texture: "+key);
                         if(!foliage)mat.SetFloat("_Glossiness",.14f);

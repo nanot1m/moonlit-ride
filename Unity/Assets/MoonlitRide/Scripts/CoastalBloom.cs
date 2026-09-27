@@ -5,6 +5,7 @@ namespace MoonlitRide
     public sealed class CoastalBloom : MonoBehaviour
     {
         Material material;
+        void OnEnable() { GetComponent<Camera>().depthTextureMode |= DepthTextureMode.DepthNormals; }
         void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
             if (!material) material=new Material(Shader.Find("MoonlitRide/CoastalBloom"));
