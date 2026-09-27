@@ -12,7 +12,7 @@ namespace MoonlitRide
         public Transform HairAnchor => anchor.transform;
         public Vector3 AppliedWind { get; private set; }
         Rigidbody anchor, torsoBody;
-        Transform head;
+        Transform head, waistBone; Vector3 bodyOffset;
         SkinnedMeshRenderer hairRenderer;
         Mesh dressMesh, hairMesh;
         CapsuleCollider[] bodyCapsules;
@@ -39,7 +39,8 @@ namespace MoonlitRide
             var renderer = dressObject.GetComponent<SkinnedMeshRenderer>(); dressMesh = Instantiate(Resources.Load<Mesh>("Rider/Dress"));
             var weights = new BoneWeight[dressMesh.vertexCount]; for (int i = 0; i < weights.Length; i++) weights[i] = new BoneWeight { boneIndex0 = 0, weight0 = 1 };
             dressMesh.boneWeights = weights; dressMesh.bindposes = new[] { Matrix4x4.identity };
-            renderer.sharedMesh = dressMesh; renderer.bones = new[] { transform }; renderer.rootBone = transform; renderer.sharedMaterial = dressMaterial; renderer.updateWhenOffscreen = true; renderer.localBounds = new Bounds(new Vector3(0, 1.45f, .2f), new Vector3(3, 3, 3));
+            waistBone = new GameObject("Animated skirt waist").transform; waistBone.SetParent(transform, false);
+            renderer.sharedMesh = dressMesh; renderer.bones = new[] { waistBone }; renderer.rootBone = transform; renderer.sharedMaterial = dressMaterial; renderer.updateWhenOffscreen = true; renderer.localBounds = new Bounds(new Vector3(0, 1.45f, .2f), new Vector3(3, 3, 3));
             Dress = dressObject.AddComponent<Cloth>(); Dress.useGravity = true; Dress.damping = .08f; Dress.stretchingStiffness = .95f; Dress.bendingStiffness = .015f;
             Dress.clothSolverFrequency = 180; Dress.stiffnessFrequency = 120; Dress.friction = .45f; Dress.collisionMassScale = .3f;
             Dress.useTethers = true; Dress.enableContinuousCollision = true; Dress.useVirtualParticles = .5f; Dress.worldVelocityScale = .12f; Dress.worldAccelerationScale = .08f;
@@ -96,6 +97,10 @@ namespace MoonlitRide
             capsule.height = Vector3.Distance(hip, knee) + .12f;
         }
         public void SetRide(RideState state, bool reducedMotion) { ride = state; reduced = reducedMotion; }
+        public void SetBodyOffset(Vector3 offset) {
+            bodyOffset = offset; waistBone.localPosition = offset;
+            bodyCapsules[0].transform.localPosition = new Vector3(0, 1.54f, .15f) + offset;
+        }
         public static Vector3 WindAcceleration(float seconds, float speed, WindZone wind, Vector3 backward, bool reduced)
         {
             float pulse = 1 + wind.windPulseMagnitude * Mathf.Sin(seconds * wind.windPulseFrequency * Mathf.PI * 2);
@@ -105,7 +110,7 @@ namespace MoonlitRide
         {
             if (ride == null) return;
             var waist = new Vector3(0, 1.855f, .2f);
-            torsoBody.MovePosition(transform.TransformPoint(waist + head.localRotation * (new Vector3(0,2.12f,.1f)-waist)));
+            torsoBody.MovePosition(transform.TransformPoint(bodyOffset + waist + head.localRotation * (new Vector3(0,2.12f,.1f)-waist)));
             torsoBody.MoveRotation(head.rotation);
             var attachment = head.TransformPoint(rootLocal);
             Vector3 riderVelocity = (attachment - lastAttachment) / Time.fixedDeltaTime; lastAttachment = attachment;

@@ -11,7 +11,11 @@ namespace MoonlitRide
         Transform[] arms = new Transform[2], forearms = new Transform[2], upper = new Transform[2], lower = new Transform[2], shoes = new Transform[2];
         Transform torso, head;
         AnatomicalRider anatomy; CityBicycle bicycle;
-        float tuck; Quaternion posture = Quaternion.identity;
+        float tuck, standing; Vector3 bodyOffset; Quaternion posture = Quaternion.identity;
+        public float Standing => standing;
+        public float ForwardLean => -tuck * Mathf.Rad2Deg;
+        public static float StandingTarget(float speed, bool pedalling) => pedalling ? (1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(2, 7, speed))) * Mathf.SmoothStep(0, 1, Mathf.InverseLerp(.1f, 1, speed)) : 0;
+        public static float LeanTarget(RideState s, float stand) => -.32f * Mathf.SmoothStep(0, 1, Mathf.InverseLerp(4, 26, s.Speed)) - .30f * Mathf.Clamp01(s.Acceleration / 5) - .10f * Mathf.Clamp01(s.BoostRemaining / 9) - .12f * stand;
         Material Mat(string c, float emission = 0) { var m = Geometry.Material(c, emission); materials.Add(m); return m; }
         Mesh Own(Mesh m) { meshes.Add(m); return m; }
         public void Initialize()
@@ -25,6 +29,7 @@ namespace MoonlitRide
             var blouse = new Material(Shader.Find("MoonlitRide/Blouse")); materials.Add(blouse);
             anatomy = gameObject.AddComponent<AnatomicalRider>(); anatomy.Initialize(blouse, skin, skin);
             head = new GameObject("Head and swept hair").transform; head.SetParent(transform, false); head.localPosition = new Vector3(0, 2.675f, .134f);
+            head.localScale = Vector3.one * .86f;
             
             Geometry.MeshObject("Sculpted face", head, Resources.Load<Mesh>("Rider/Head"), skin);
             Geometry.MeshObject("Swept hair cap", head, Resources.Load<Mesh>("Rider/HairCap"), hair);
@@ -55,20 +60,22 @@ namespace MoonlitRide
             Pose(new RideState(), 0, true);
             Dynamics.ResetSimulation();
         }
-        Vector3 Tuck(Vector3 p) => new Vector3(0, 1.855f, .2f) + posture * (p - new Vector3(0, 1.855f, .2f));
-        public void ResetPose() { tuck = 0; posture = Quaternion.identity; }
+        Vector3 Tuck(Vector3 p) => bodyOffset + new Vector3(0, 1.855f, .2f) + posture * (p - new Vector3(0, 1.855f, .2f));
+        public void ResetPose() { tuck = standing = 0; bodyOffset = Vector3.zero; posture = Quaternion.identity; }
         public void Pose(RideState s, float dt, bool reduced)
         {
             float z = -s.Progress, heading = Mathf.Atan(Route.Derivative(z));
             transform.position = Route.Position(s.Progress, s.Lateral, -.04f + (reduced ? 0 : Mathf.Sin(s.Distance * 8) * .007f * Mathf.Min(s.Speed / 10, 1)));
             transform.rotation = Quaternion.Euler(0, (-heading + s.Heading) * Mathf.Rad2Deg, 0) * Quaternion.Euler(-Mathf.Atan(Route.Slope(z) * Mathf.Cos(heading)) * Mathf.Rad2Deg, 0, -s.Lean * Mathf.Rad2Deg);
             bicycle.Pose(s);
-            float targetTuck = -.30f * Mathf.SmoothStep(0, 1, Mathf.InverseLerp(4, 24, s.Speed)) - .13f * Mathf.Clamp01(s.Acceleration / 3) - .08f * Mathf.Clamp01(s.BoostRemaining / 9);
+            standing += (StandingTarget(s.Speed, s.Pedalling) - standing) * (1 - Mathf.Exp(-dt * 4));
+            bodyOffset = new Vector3(reduced ? 0 : Mathf.Sin(s.Cadence) * .014f, .12f + (reduced ? 0 : Mathf.Sin(s.Cadence * 2) * .012f), -.14f) * standing;
+            float targetTuck = LeanTarget(s, standing);
             tuck += (targetTuck - tuck) * (1 - Mathf.Exp(-dt * 3));
             float sway = reduced ? 0 : Mathf.Sin(s.Cadence) * .95f * Mathf.Clamp01(s.Speed / 5);
             posture = Quaternion.Euler(tuck * Mathf.Rad2Deg, Mathf.Sin(s.Cadence*.5f)*.35f*(reduced?0:1), sway);
-            torso.localPosition = new Vector3(0, 1.855f, .2f); head.localPosition = Tuck(new Vector3(0, 2.675f, .134f)); torso.localRotation = head.localRotation = posture;
-            Dynamics.SetRide(s, reduced); anatomy.PoseTorso(posture);
+            torso.localPosition = bodyOffset + new Vector3(0, 1.855f, .2f); head.localPosition = Tuck(new Vector3(0, 2.63f, .134f)); torso.localRotation = head.localRotation = posture;
+            Dynamics.SetBodyOffset(bodyOffset); Dynamics.SetRide(s, reduced); anatomy.PoseTorso(posture, bodyOffset);
             for (int i = 0; i < 2; i++)
             {
                 float side = i == 0 ? -1 : 1, a = s.Cadence + i * Mathf.PI;
@@ -77,8 +84,8 @@ namespace MoonlitRide
                 var elbow = SolveJoint(shoulder, hand, new Vector3(side * .7f, 1.85f, .15f), .48f, .47f);
                 Geometry.PoseRod(arms[i], shoulder, elbow, .074f); Geometry.PoseRod(forearms[i], elbow, hand, .057f);
                 var foot = CityBicycle.Foot(i,s.Cadence);
-                var hip = new Vector3(side * .172f, 1.44f, .235f);
-                var knee = SolveJoint(hip, foot, new Vector3(side * .3f, 1.1f, -1), .55f, .55f);
+                var hip = bodyOffset + new Vector3(side * .172f, 1.44f, .235f);
+                var knee = SolveJoint(hip, foot, new Vector3(side * .3f, 1.1f, -1), .60f, .61f);
                 Dynamics.PoseLeg(i, hip, knee);
                 anatomy.PoseLimb(i, shoulder, elbow, hand, hip, knee, foot);
                 Geometry.PoseRod(upper[i], new Vector3(side * .172f, 1.44f, .235f), knee, .085f); Geometry.PoseRod(lower[i], knee, foot, .065f); shoes[i].localPosition = foot; shoes[i].localRotation = Quaternion.Euler(Mathf.Sin(a)*7,0,0);

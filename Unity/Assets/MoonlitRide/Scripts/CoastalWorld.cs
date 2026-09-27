@@ -5,7 +5,7 @@ namespace MoonlitRide
 {
     public sealed partial class CoastalWorld : MonoBehaviour
     {
-        public sealed class Chunk { public int Index; public District Area; public bool HasPier; public Transform Root; public List<Pickup> Pickups; }
+        public sealed class Chunk { public int Index; public District Area; public bool HasPier; public Transform Root; public List<Pickup> Pickups; public Light[] Lights; public float[] LightLevels; }
         public readonly List<Chunk> Chunks = new List<Chunk>();
         readonly List<Material> materials = new List<Material>();
         readonly List<Mesh> sourceMeshes = new List<Mesh>();
@@ -55,7 +55,10 @@ namespace MoonlitRide
                 if (Chunks[i].Index > current + 3 || Chunks[i].Index < current - 19) { Dispose(Chunks[i]); Chunks.RemoveAt(i); }
             for (int n = current - 19; n <= current + 3; n++)
                 if (!Chunks.Exists(c => c.Index == n)) Chunks.Add(Create(n));
-            foreach (var c in Chunks) { var light = c.Root.GetComponentInChildren<Light>(); if (light) light.enabled = Mathf.Abs(c.Index - current) < 3; }
+            foreach (var c in Chunks) for (int i = 0; i < c.Lights.Length; i++) {
+                var light = c.Lights[i]; float fade = LightFade(Mathf.Abs(light.transform.position.z + progress));
+                light.intensity = c.LightLevels[i] * fade; light.enabled = fade > .0001f;
+            }
             ocean.position = new Vector3(430, -1.3f, -progress); backdrop.position = new Vector3(0, 0, -progress);
         }
         public void ResetWorld() { foreach (var c in Chunks) Dispose(c); Chunks.Clear(); Stream(0); }
@@ -108,7 +111,8 @@ namespace MoonlitRide
             Geometry.Box(scenery, new Vector3(lx, ly + 5.3f, lz), new Vector3(.6f, .8f, .6f), glow);
             Geometry.Box(scenery, new Vector3(lx, ly + 5.8f, lz), new Vector3(.9f, .15f, .9f), dark);
             for (int j = 0; j < 3; j++) {
-                if(j==1 && (area==District.Residential || area==District.Tourist && n%2==0)) { Plaza(scenery,start+j*8,area);continue; }
+                if(j==1 && HasSideStreet(n)) { SideStreet(scenery,start+j*8,area);continue; }
+                if(!HasBuilding(n,j)) { Plaza(scenery,start+j*8,area);continue; }
                 Building(scenery, start + j * 8, n * 3 + j,area);
             }
             DistrictDetails(scenery,start,area);
@@ -117,19 +121,20 @@ namespace MoonlitRide
             string[] treeNames={"NormalTree_1","PineTree_2","NormalTree_3","MapleTree_1","PineTree_4"};
             for(int j=0;j<5;j++) {
                 float z=start+2+j*4.6f, off=22+Hash(n*17+j)*19;
+                if(HasSideStreet(n) && Mathf.Abs(z-start-8)<4)continue;
                 nature.Place(scenery,treeNames[(int)(Hash(n*31+j)*treeNames.Length)],new Vector3(Route.Center(z)+off,BankHeight(z,off)-.1f,z),1.2f+Hash(n*13+j)*.9f,Hash(n*41+j)*360);
             }
-            for(int j=0;j<2;j++) if(Hash(n*7+j)>.12f && !hasPier) {
+            for(int j=0;j<2;j++) if(Hash(n*7+j)>.12f && !hasPier && Route.Waterfront(start+12)<.45f) {
                 float z=start+4+j*12+Hash(n+j)*3,off=-7.7f-Hash(n*3+j)*1.2f;
                 nature.Place(scenery,treeNames[(int)(Hash(n*37+j)*3)],new Vector3(Route.Center(z)+off,BankHeight(z,off)-.1f,z),1.25f+Hash(n*5+j)*.5f,Hash(n*29+j)*360);
             }
             for(int j=0;j<8;j++) {
-                float z=start+Hash(n*89+j*11)*24; if(hasPier && Mathf.Abs(z-start-13)<2.5f)continue; float off=Mathf.Lerp(Shore(z)+1,-7.5f,Hash(n*53+j*7));
+                float z=start+Hash(n*89+j*11)*24; if(Route.Waterfront(z)>.65f || hasPier && Mathf.Abs(z-start-13)<2.5f)continue; float off=Mathf.Lerp(Shore(z)+1,-7.5f,Hash(n*53+j*7));
                 nature.Place(scenery,j%2==0?"Rock_1":"Rock_2",new Vector3(Route.Center(z)+off,BankHeight(z,off)-.35f,z),1.3f+Hash(n*23+j)*3,Hash(n*19+j)*360);
                 if(j%2==0) nature.Place(scenery,"Bush_Large",new Vector3(Route.Center(z)+off+1,BankHeight(z,off+1)-.05f,z),.7f+Hash(n*67+j),Hash(n+j)*360);
             }
             for(int j=0;j<12;j++) {
-                float z=start+j*2+.4f; if(hasPier && Mathf.Abs(z-start-13)<2.5f)continue; float off=-6.9f-Hash(n*79+j)*2.5f;
+                float z=start+j*2+.4f; if(Route.Waterfront(z)>.65f || hasPier && Mathf.Abs(z-start-13)<2.5f)continue; float off=-6.9f-Hash(n*79+j)*2.5f;
                 nature.Place(scenery,"Grass_Large",new Vector3(Route.Center(z)+off,BankHeight(z,off),z),.8f+Hash(n*43+j),Hash(n*17+j)*360);
             }
             if(!hasPier && n%3==0) {
@@ -152,10 +157,12 @@ namespace MoonlitRide
                 if (p.Booster) { var t = Geometry.MeshObject("Booster ring", node, ring, mint); t.localRotation = Quaternion.Euler(0, 90, 0); }
                 p.Visual = node;
             }
-            return new Chunk { Index = n, Area=area, HasPier=hasPier, Root = root, Pickups = pickups };
+            var chunkLights = root.GetComponentsInChildren<Light>(); var levels = new float[chunkLights.Length];
+            for (int i = 0; i < levels.Length; i++) levels[i] = chunkLights[i].intensity;
+            return new Chunk { Index = n, Area=area, HasPier=hasPier, Root = root, Pickups = pickups, Lights = chunkLights, LightLevels = levels };
         }
         static float Hash(int seed) {return Mathf.Repeat(Mathf.Sin(seed*127.1f+311.7f)*43758.5453f,1);}
-        public static float Shore(float z) => -26-Mathf.Sin(z*.021f)*8-Mathf.Sin(z*.057f)*4;
+        public static float Shore(float z) => Mathf.Lerp(-26-Mathf.Sin(z*.021f)*8-Mathf.Sin(z*.057f)*4,-7.5f,Route.Waterfront(z));
         public static float BankHeight(float z,float off) {
             float elevation=Route.Elevation(z);
             if(off < -6.2f) {
@@ -178,7 +185,10 @@ namespace MoonlitRide
             var v = new List<Vector3>(); var t = new List<int>();
             // Continuous bevelled profile swept along the actual road elevation.
             Vector2[] profile = { new Vector2(left, -.12f), new Vector2(left, .12f), new Vector2(left + .045f, .17f), new Vector2(right - .045f, .17f), new Vector2(right, .12f), new Vector2(right, -.12f) };
-            for (int j = 0; j <= 24; j++) foreach (var p in profile) v.Add(new Vector3(Route.Center(start + j) + p.x, Route.Elevation(start + j) + p.y, start + j));
+            for (int j = 0; j <= 24; j++) foreach (var p in profile) {
+                float curb=right>0 && HasSideStreet(Mathf.FloorToInt(start/24)) ? Mathf.SmoothStep(0,1,Mathf.InverseLerp(2.9f,3.7f,Mathf.Abs(j-8))) : 1;
+                v.Add(new Vector3(Route.Center(start+j)+p.x,Route.Elevation(start+j)+p.y*curb,start+j));
+            }
             for (int j = 0; j < 24; j++) for (int k = 0; k < 5; k++) { int a = j * 6 + k; t.AddRange(new[] { a, a + 6, a + 1, a + 1, a + 6, a + 7 }); }
             var mesh = Geometry.Mesh(v.ToArray(), t.ToArray()); Geometry.MeshObject("Continuous stone promenade", parent, mesh, trim); Destroy(mesh, .1f);
         }
@@ -243,7 +253,8 @@ namespace MoonlitRide
             if(home) HomeDetails(p,x-w/2,ground,z,i);
             else ShopFront(p,x-w/2,ground,z,i,visitor);
             if(home || visitor) Balcony(p,x-w/2,ground+(home?3.25f:4.0f),z,visitor?5.8f:3.8f);
+            if (index % 3 == 0) WindowLight(p, x-w/2, ground, z+1.8f, home?2:4.6f);
         }
-        void OnDestroy() { nature.Dispose(); foreach (var m in materials) Destroy(m); foreach (var m in sourceMeshes) Destroy(m); }
+        void OnDestroy() { nature.Dispose(); if (windowCookie) Destroy(windowCookie); foreach (var m in materials) Destroy(m); foreach (var m in sourceMeshes) Destroy(m); }
     }
 }

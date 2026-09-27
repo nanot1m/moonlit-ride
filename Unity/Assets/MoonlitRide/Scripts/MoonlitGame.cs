@@ -35,6 +35,7 @@ namespace MoonlitRide
         void Awake()
         {
             Application.targetFrameRate = 120; QualitySettings.vSyncCount = 1; Time.fixedDeltaTime = 1f / 120; Time.timeScale = 0;
+            QualitySettings.shadows = ShadowQuality.All; QualitySettings.shadowDistance = 90; QualitySettings.shadowCascades = 2;
             reduced = PlayerPrefs.GetInt("ReducedMotion", 0) != 0; sound = PlayerPrefs.GetInt("Sound", 1) != 0; volume = PlayerPrefs.GetFloat("Volume", .55f);
             RenderSettings.ambientMode = AmbientMode.Trilight; RenderSettings.ambientSkyColor = new Color(.32f, .40f, .58f); RenderSettings.ambientEquatorColor = new Color(.32f, .29f, .34f); RenderSettings.ambientGroundColor = new Color(.25f, .23f, .32f);
             RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Linear; RenderSettings.fogColor = new Color(.27f, .38f, .66f); RenderSettings.fogStartDistance = 100; RenderSettings.fogEndDistance = 340;
@@ -202,12 +203,12 @@ namespace MoonlitRide
                 for (int i = 0; i < 120; i++) RideSimulation.StepOnRoad(steeringProbe, new RideInput { Steer = 1 }, 0, 0, 0);
                 Require(View.WorldToViewportPoint(Route.Position(0, steeringProbe.Lateral)).x > centerPixel.x, "right input moves right on screen");
                 Require(View.WorldToViewportPoint(Route.Position(0, 10)).x > centerPixel.x && View.WorldToViewportPoint(Route.Position(0, -18)).x < centerPixel.x, "houses right, sea left");
-                for (int frame = 0; frame < 900; frame++) { for (int step = 0; step < 8; step++) Simulate(new RideInput()); if (frame % 4 == 0) World.Stream(Ride.Progress); }
+                for (int frame = 0; frame < 900; frame++) { for (int step = 0; step < 8; step++) Simulate(SmokeSteering()); if (frame % 4 == 0) World.Stream(Ride.Progress); }
                 Require(Ride.Progress > 478 && Ride.Distance > 500, "route progression");
                 Require(Collected >= 31 && Score >= 56, "rows and booster collection");
                 Require(World.Chunks.Count == 23, "bounded chunk streaming");
                 Restart(); Require(Score == 0 && Collected == 0 && Ride.Speed == 0 && Ride.BoostRemaining == 0, "restart clears ride");
-                for (int i = 0; i < 3200; i++) { Simulate(new RideInput()); if (i % 32 == 0) World.Stream(Ride.Progress); }
+                for (int i = 0; i < 3200; i++) { Simulate(SmokeSteering()); if (i % 32 == 0) World.Stream(Ride.Progress); }
                 Bicycle.Pose(Ride, 1, false); Bicycle.Dynamics.ResetSimulation(); UpdateCamera(1);
             }
             catch (Exception e) { failure = e.ToString(); Debug.LogError(failure); }
@@ -288,8 +289,21 @@ namespace MoonlitRide
                 CaptureCamera(Path.Combine(Path.GetDirectoryName(capture), Path.GetFileNameWithoutExtension(capture) + "-rider.png"));                View.transform.position = Bicycle.transform.TransformPoint(1.9f, 2.5f, -2.7f); View.transform.LookAt(Bicycle.transform.TransformPoint(0, 2.15f, .1f));
                 CaptureCamera(Path.Combine(Path.GetDirectoryName(capture), Path.GetFileNameWithoutExtension(capture) + "-face.png"));
                 Ride.Speed = 25; Ride.Acceleration = 3; Ride.BoostRemaining = 9; Bicycle.Pose(Ride, 2, false); Bicycle.Dynamics.ResetSimulation();
+                yield return null; yield return new WaitForEndOfFrame(); // Let skinned renderers evaluate the new bones.
                 View.transform.position = Bicycle.transform.TransformPoint(3.4f, 2.3f, .6f); View.transform.LookAt(Bicycle.transform.TransformPoint(0, 1.8f, 0));
                 CaptureCamera(Path.Combine(Path.GetDirectoryName(capture), Path.GetFileNameWithoutExtension(capture) + "-boost.png"));
+                Ride.Speed = 2; Ride.Acceleration = 3; Ride.BoostRemaining = 0; Ride.Pedalling = true;
+                Bicycle.Pose(Ride, 2, false); Bicycle.Dynamics.ResetSimulation();
+                yield return null; yield return new WaitForEndOfFrame();
+                Require(Bicycle.Standing > .95f, "rider rises from saddle when pedalling slowly");
+                View.transform.position = Bicycle.transform.TransformPoint(3.4f, 2.3f, .6f); View.transform.LookAt(Bicycle.transform.TransformPoint(0, 1.8f, 0));
+                CaptureCamera(Path.Combine(Path.GetDirectoryName(capture), Path.GetFileNameWithoutExtension(capture) + "-standing.png"));
+                World.Stream(312);
+                var testChunk = World.Chunks.Find(c => c.Index == -14);
+                var window = Array.Find(testChunk.Lights, l => l.type == LightType.Spot);
+                View.transform.position = window.transform.position + new Vector3(8, 4, 5);
+                View.transform.LookAt(window.transform.position + new Vector3(3, -2, 0)); View.fieldOfView = 55;
+                CaptureCamera(Path.Combine(Path.GetDirectoryName(capture), "Window-light.png"));
             }
             yield return null; yield return null;
             Application.Quit(failure == null ? 0 : 1);
@@ -300,6 +314,11 @@ namespace MoonlitRide
             View.targetTexture = target; View.Render(); RenderTexture.active = target;
             pixels.ReadPixels(new Rect(0, 0, 1440, 900), 0, 0); pixels.Apply(); File.WriteAllBytes(path, pixels.EncodeToPNG());
             View.targetTexture = null; RenderTexture.active = previous; Destroy(pixels); target.Release(); Destroy(target);
+        }
+        RideInput SmokeSteering() {
+            float next=float.PositiveInfinity,lane=0;
+            foreach(var chunk in World.Chunks)foreach(var p in chunk.Pickups)if(!p.Taken && p.Progress>=Ride.Progress && p.Progress<next) {next=p.Progress;lane=p.Lane;}
+            return new RideInput {Steer=Mathf.Clamp((lane-Ride.Lateral)*.85f-Ride.Heading*4,-1,1)};
         }
         void OnDestroy() { Time.timeScale = 1; if (panel) Destroy(panel); if (sky) Destroy(sky); }
     }

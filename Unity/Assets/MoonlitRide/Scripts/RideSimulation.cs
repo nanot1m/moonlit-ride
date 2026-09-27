@@ -10,7 +10,7 @@ namespace MoonlitRide
     {
         public float Progress, Distance, Lateral, Speed, Heading, Steering, Lean;
         public float WheelAngle, Cadence, Acceleration, BoostRemaining;
-        public bool Contact;
+        public bool Contact, Pedalling;
         public void Boost() { BoostRemaining = 9; Speed = Mathf.Min(RideSimulation.MaximumSpeed, Speed + 10); }
     }
 
@@ -19,16 +19,28 @@ namespace MoonlitRide
     public static class Route
     {
         public const float Length = 720, Descent = 480;
-        public static float Center(float z) => Mathf.Sin(z * .012f) * 19 + Mathf.Sin(z * .028f) * 5;
+        public static float Center(float z) { float a=.5f+.5f*Mathf.Sin(z*.009f); return Mathf.Sin(z*.012f)*19+Mathf.Sin(z*.028f)*5+8*a*a*Mathf.Sin(z*.066f); }
+        public static float Waterfront(float z) {
+            float p=Mathf.Repeat(-z,Length);
+            return Mathf.SmoothStep(0,1,Mathf.InverseLerp(250,340,p))*(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(520,700,p)));
+        }
         public static float Elevation(float z)
         {
             float p = Mathf.Repeat(-z, Length);
-            return p < Descent ? 8 + 11 * (1 + Mathf.Cos(Mathf.PI * p / Descent))
+            float hill = p < Descent ? 8 + 11 * (1 + Mathf.Cos(Mathf.PI * p / Descent))
                 : 8 + 11 * (1 - Mathf.Cos(Mathf.PI * (p - Descent) / (Length - Descent)));
+            return Mathf.Lerp(hill,1.1f,Waterfront(z));
         }
         public static float Slope(float z) => (Elevation(z + .05f) - Elevation(z - .05f)) / .1f;
-        public static float Derivative(float z) => .228f * Mathf.Cos(z * .012f) + .14f * Mathf.Cos(z * .028f);
-        public static float Curvature(float z) => (-.002736f * Mathf.Sin(z * .012f) - .00392f * Mathf.Sin(z * .028f)) / Mathf.Pow(1 + Derivative(z) * Derivative(z), 1.5f);
+        public static float Derivative(float z) {
+            float a=.5f+.5f*Mathf.Sin(z*.009f), da=.0045f*Mathf.Cos(z*.009f);
+            return .228f*Mathf.Cos(z*.012f)+.14f*Mathf.Cos(z*.028f)+8*(2*a*da*Mathf.Sin(z*.066f)+.066f*a*a*Mathf.Cos(z*.066f));
+        }
+        public static float Curvature(float z) {
+            float a=.5f+.5f*Mathf.Sin(z*.009f), da=.0045f*Mathf.Cos(z*.009f), dda=-.0000405f*Mathf.Sin(z*.009f);
+            float second=-.002736f*Mathf.Sin(z*.012f)-.00392f*Mathf.Sin(z*.028f)+8*((2*da*da+2*a*dda-.066f*.066f*a*a)*Mathf.Sin(z*.066f)+4*.066f*a*da*Mathf.Cos(z*.066f));
+            return second/Mathf.Pow(1+Derivative(z)*Derivative(z),1.5f);
+        }
         // Reflect the original right-handed X axis at the rendering boundary.
         // Physics remains identical to the browser; screen-right is now original +X.
         public static Vector3 Position(float progress, float lateral = 0, float height = 0) => new Vector3(-Center(-progress) - lateral, Elevation(-progress) + height, -progress);
@@ -49,6 +61,7 @@ namespace MoonlitRide
             s.BoostRemaining = input.Brake ? 0 : Mathf.Max(0, s.BoostRemaining - dt);
             float boostForce = 4 * Mathf.Pow(s.BoostRemaining / 9, 2);
             float power = input.Brake || input.Coast ? 0 : input.Pedal ? 620 : 230;
+            s.Pedalling = power > 0;
             float drive = Mathf.Min(input.Pedal ? 3.1f : 1.7f, power / (85 * Mathf.Max(s.Speed, 1.4f)));
             float gravity = 9.81f * dy / metric;
             float assist = !input.Brake && !input.Coast && dy < 0 ? Mathf.Max(0, -gravity) * .9f + Mathf.Max(0, 7.5f - s.Speed) * .22f : 0;
@@ -97,6 +110,8 @@ namespace MoonlitRide
 
     public static class PickupLayout
     {
+        // A complete row stays on one side; generous gaps allow a lane change even at 140 km/h.
+        public static float RowLane(int loop,int row) => ((row+loop)%2==0 ? -1 : 1)*(row%3==1 ? 2.7f : 2.3f);
         public static List<Pickup> ForChunk(int chunk)
         {
             float start = chunk * 24, end = start + 24;
@@ -109,7 +124,7 @@ namespace MoonlitRide
                     for (int i = 0; i < 6; i++)
                     {
                         float p = first + i * 3;
-                        if (-p >= start && -p < end) result.Add(new Pickup { Progress = p, Loop = loop, Row = row, Index = i, RowEnd = first + 15 });
+                        if (-p >= start && -p < end) result.Add(new Pickup { Progress = p, Lane=RowLane(loop,row), Loop = loop, Row = row, Index = i, RowEnd = first + 15 });
                     }
                 }
                 float boost = loop * 720 + 478;

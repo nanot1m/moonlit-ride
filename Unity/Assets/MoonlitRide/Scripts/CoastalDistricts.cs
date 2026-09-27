@@ -4,6 +4,17 @@ namespace MoonlitRide {
     public sealed partial class CoastalWorld {
         public enum District { Market, Residential, Tourist }
         public static District DistrictAt(float progress) => (District)Mathf.FloorToInt(Mathf.Repeat(progress,720)/240);
+        public static bool HasSideStreet(int chunk) {
+            var area=DistrictAt(-chunk*24-12); int slot=((chunk%10)+10)%10;
+            return area==District.Market ? slot==3 || slot==8 : area==District.Residential ? slot%2==0 : slot%3==0;
+        }
+        public static bool HasBuilding(int chunk,int slot) {
+            var area=DistrictAt(-chunk*24-12);
+            if(slot==1 && HasSideStreet(chunk))return false;
+            if(area==District.Market)return true;
+            if(area==District.Residential)return slot==0 || slot==2 && chunk%3==0;
+            return slot!=1 && (Route.Waterfront(chunk*24+12)<.8f || slot==0);
+        }
         public static bool HasPier(int chunk) {
             int slot=(((-chunk-1)%10)+10)%10;
             return DistrictAt(-chunk*24-12)==District.Tourist && (slot==1 || slot==5);
@@ -120,6 +131,35 @@ namespace MoonlitRide {
                 Bench(p,new Vector3(x-2,y+.18f,z-1));Bench(p,new Vector3(x-2,y+.18f,z+2));
             }
         }
+        void SideStreet(Transform p,float z,District area) {
+            // A real opening between facades, rising inland with the terrain.
+            var vertices=new List<Vector3>();var indices=new List<int>();
+            for(int k=0;k<=18;k++) {
+                float offset=5.05f+k*2.5f;
+                foreach(float side in new[]{-1f,1f}) {
+                    float zz=z+side*2.85f;
+                    vertices.Add(new Vector3(Route.Center(zz)+offset,BankHeight(zz,offset)+.32f,zz));
+                }
+                if(k<18){int a=k*2;indices.AddRange(new[]{a,a+1,a+2,a+1,a+3,a+2});}
+            }
+            var mesh=Geometry.Mesh(vertices.ToArray(),indices.ToArray());Geometry.MeshObject("Side street to the upper town",p,mesh,road);Destroy(mesh,.1f);
+            for(int k=0;k<18;k++) {
+                float off=6.3f+k*2.5f;
+                foreach(float side in new[]{-1f,1f}) {
+                    float zz=z+side*3.12f;
+                    Geometry.Box(p,new Vector3(Route.Center(zz)+off,BankHeight(zz,off)+.34f,zz),new Vector3(2.52f,.20f,.4f),trim);
+                }
+            }
+            float x=Route.Center(z)+6.5f,y=Route.Elevation(z);
+            Geometry.Rod(p,new Vector3(x,y,z+3.35f),new Vector3(x,y+2.3f,z+3.35f),.055f,dark);
+            Geometry.Box(p,new Vector3(x,y+2.1f,z+3.35f),new Vector3(.12f,.42f,1.45f),accents[1]);
+            // Set-back houses face the side street instead of filling the waterfront gap.
+            foreach(int side in new[]{-1,1}) {
+                float off=27,zz=z+side*6.5f,baseY=BankHeight(zz,off);
+                Geometry.Box(p,new Vector3(Route.Center(zz)+off,baseY+2.3f,zz),new Vector3(7,4.6f,5.5f),homeWalls[side<0?0:2]);
+                var top=Geometry.MeshObject("Lane cottage roof",p,gableRoof,roof);top.localPosition=new Vector3(Route.Center(zz)+off,baseY+4.6f,zz);top.localScale=new Vector3(7.4f,1.7f,5.9f);
+            }
+        }
         void DistrictDetails(Transform p,float start,District area) {
             float z=start+20,x=Route.Center(z)+6.3f,y=Route.Elevation(z);
             if(area==District.Market) {
@@ -142,6 +182,9 @@ namespace MoonlitRide {
         void Pier(Transform p,float z,int id) {
             float center=Route.Center(z),land=center-6.0f,edge=center+Shore(z)+.5f,end=edge-18,deck=-.15f;
             float high=Route.Elevation(z)+.17f;
+            // At the low waterfront, extend the staircase over water rather than
+            // compressing all steps into the narrow strip between road and sea.
+            edge=Mathf.Min(edge,land-(high-deck)*1.35f); end=edge-18;
             int steps=Mathf.CeilToInt((high-deck)/.21f);
             for(int k=0;k<steps;k++) {
                 float t=(k+.5f)/steps,x=Mathf.Lerp(land,edge,t),y=Mathf.Lerp(high,deck,t),run=(land-edge)/steps;

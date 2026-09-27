@@ -27,8 +27,10 @@ namespace MoonlitRide
                 renderer.localBounds=new Bounds(new Vector3(0,1.5f,0),new Vector3(3,4,3));
             }
         }
-        public void PoseTorso(Quaternion posture)
+        public void PoseTorso(Quaternion posture, Vector3 offset)
         {
+            bones[0].localPosition=definition.bones[0].start+offset;
+            bones[1].localPosition=definition.bones[1].start+offset;
             bones[1].localRotation=posture;
         }
         public void PoseLimb(int side,Vector3 shoulder,Vector3 elbow,Vector3 hand,Vector3 hip,Vector3 knee,Vector3 ankle)

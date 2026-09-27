@@ -4,6 +4,7 @@ Shader "MoonlitRide/Water" {
  CGPROGRAM
  #pragma vertex vert
  #pragma fragment frag
+ #pragma target 3.0
  #pragma multi_compile_fog
  #include "UnityCG.cginc"
  #include "Lighting.cginc"
@@ -23,13 +24,24 @@ Shader "MoonlitRide/Water" {
  float fresnel=.025+.975*pow(1-saturate(dot(normal,view)),5);
  float4 projected=mul(_ReflectionVP,float4(i.world,1));
  float2 uv=projected.xy/projected.w*.5+.5;
- float3 reflected=tex2D(_ReflectionTex,clamp(uv+gradient*.014,.002,.998)).rgb;
+ // Distort in world units, then project: constant screen offsets slide across the
+ // reflected shoreline as the camera moves and stretch texels at screen edges.
+ float4 ripple=mul(_ReflectionVP,float4(i.world+float3(gradient.x,0,gradient.y)*.7,1));
+ float2 rippleUV=ripple.xy/max(ripple.w,.001)*.5+.5;
+ float2 edge=min(rippleUV,1-rippleUV);
+ float valid=smoothstep(0,.045,min(edge.x,edge.y))*step(.001,projected.w);
+ float roughness=lerp(.8,2.2,saturate(distance/200));
+ float3 reflected=tex2Dlod(_ReflectionTex,float4(clamp(rippleUV,.001,.999),0,roughness)).rgb;
+ reflected=lerp(unity_FogColor.rgb*.7,reflected,valid);
  float3 halfVector=normalize(view+normalize(_WorldSpaceLightPos0.xyz));
- float glint=pow(saturate(dot(normal,halfVector)),180)*2.4;
+ float glint=pow(saturate(dot(normal,halfVector)),120)*1.1;
  float3 water=lerp(float3(.006,.022,.15),float3(.015,.065,.32),saturate(normal.y*.6));
- float4 color=float4(lerp(water,reflected,lerp(.22,.78,fresnel))+_LightColor0.rgb*glint,1);
- float center=sin(p.y*.012)*19+sin(p.y*.028)*5;
- float shore=-26-sin(p.y*.021)*8-sin(p.y*.057)*4;
+ float4 color=float4(lerp(water,reflected,lerp(.28,.82,fresnel))+_LightColor0.rgb*glint,1);
+ float bend=.5+.5*sin(p.y*.009);
+ float center=sin(p.y*.012)*19+sin(p.y*.028)*5+8*bend*bend*sin(p.y*.066);
+ float phase=frac(-p.y/720)*720;
+ float waterfront=smoothstep(250,340,phase)*(1-smoothstep(520,700,phase));
+ float shore=lerp(-26-sin(p.y*.021)*8-sin(p.y*.057)*4,-7.5,waterfront);
  float coastDistance=max(0,p.x-(-center-shore+1.55));
  float shallows=1-smoothstep(0,9,coastDistance);
  color.rgb=lerp(color.rgb,float3(.035,.19,.23),shallows*.32);

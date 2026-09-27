@@ -20,6 +20,19 @@ namespace MoonlitRide.Editor
         [MenuItem("Moonlit Ride/Run port regression checks")]
         public static void Run()
         {
+            Check(BicycleView.StandingTarget(2, true) > .95f && BicycleView.StandingTarget(8, true) == 0 && BicycleView.StandingTarget(2, false) == 0 && BicycleView.StandingTarget(0, true) == 0, "stand only while pedalling at low speed");
+            Check(BicycleView.LeanTarget(new RideState { Speed = 20, Acceleration = 5 }, 0) < BicycleView.LeanTarget(new RideState { Speed = 20 }, 0) - .25f, "visible acceleration tuck independent of speed");
+            for (int k = 0; k < 240; k++) {
+                float phase = k * Mathf.PI / 120;
+                var hip = new Vector3(-.172f, 1.56f + Mathf.Sin(phase * 2) * .012f, .095f);
+                var foot = CityBicycle.Foot(0, phase);
+                var knee = BicycleView.SolveJoint(hip, foot, new Vector3(-.3f, 1.1f, -1), .60f, .61f);
+                Check(Mathf.Abs(Vector3.Distance(knee, foot) - .61f) < .002f, "standing IK reaches every pedal angle");
+            }
+            Check(CoastalWorld.LightFade(0) == 1 && CoastalWorld.LightFade(68) == 0, "lights fully fade before chunk removal");
+            for (float d = 0; d < 80; d += .1f) Check(CoastalWorld.LightFade(d) >= CoastalWorld.LightFade(d + .1f) && CoastalWorld.LightFade(d) - CoastalWorld.LightFade(d + .1f) < .004f, "continuous monotonic light fade");
+            var mirror = WaterReflection.Mirror(-1.25f); var probe = new Vector3(3, 7, -9);
+            Check(Vector3.Distance(mirror.MultiplyPoint(mirror.MultiplyPoint(probe)), probe) < .0001f && Mathf.Abs(mirror.MultiplyPoint(probe).y + 9.5f) < .0001f, "reflection mirrors around actual sea level");
             for (int i = 0; i < 120; i++)
             {
                 float angle = i * Mathf.PI / 60; var hip = new Vector3(.2f, 1.44f, .25f);
@@ -77,11 +90,45 @@ namespace MoonlitRide.Editor
             var boost = new RideState { Speed = 12 }; boost.Boost(); Check(boost.Speed == 22 && boost.BoostRemaining == 9, "boost kick");
             RideSimulation.Step(boost, new RideInput { Brake = true }); Check(boost.BoostRemaining == 0, "braking cancels boost");
             boost.Boost(); for (int i = 0; i < 1100; i++) RideSimulation.Step(boost, new RideInput()); Check(boost.BoostRemaining == 0, "boost expiry");
-            Check(Mathf.Abs(Route.Elevation(0) - 30) < .001f && Mathf.Abs(Route.Elevation(-480) - 8) < .001f && Mathf.Abs(Route.Elevation(-720) - 30) < .001f, "route profile");
+            Check(Mathf.Abs(Route.Elevation(0) - 30) < .001f && Mathf.Abs(Route.Elevation(-480) - 1.1f) < .001f && Mathf.Abs(Route.Elevation(-720) - 30) < .001f, "hill to low waterfront profile");
+            float tightest=0;
+            for(float z=-2160;z<=0;z+=.5f) {
+                tightest=Mathf.Max(tightest,Mathf.Abs(Route.Curvature(z)));
+                Check(Mathf.Abs(Route.Derivative(z)-(Route.Center(z+.05f)-Route.Center(z-.05f))/.1f)<.003f,"curve derivative follows rendered road");
+                Check(Mathf.Abs(Route.Slope(z))<.38f,"bounded gradients on coastal transitions");
+            }
+            Check(tightest>.02f && tightest<.06f,"mixture of gentle and tighter bends");
+            Check(CoastalWorld.Shore(-400)>-8 && Route.Elevation(-400)<1.2f,"road directly beside water");
+            int shops=0,homes=0,streets=0;
+            for(int chunk=-30;chunk<0;chunk++) {
+                if(CoastalWorld.HasSideStreet(chunk))streets++;
+                for(int slot=0;slot<3;slot++) if(CoastalWorld.HasBuilding(chunk,slot)) {
+                    if(CoastalWorld.DistrictAt(-chunk*24-12)==CoastalWorld.District.Market)shops++;
+                    if(CoastalWorld.DistrictAt(-chunk*24-12)==CoastalWorld.District.Residential)homes++;
+                }
+            }
+            Check(homes<shops*.65f && streets>=8,"sparse homes and side streets break up dense market");
             foreach (float seam in new[] { 0f, -480f, -720f }) Check(Mathf.Abs(Route.Slope(seam)) < .001f, "smooth slope seams");
             var pickups = new List<Pickup>(); for (int i = -30; i < 0; i++) pickups.AddRange(PickupLayout.ForChunk(i));
             Check(pickups.FindAll(p => p.Row >= 0).Count == 30 && pickups.FindAll(p => p.Booster).Count == 1, "five rows plus booster");
             Check(pickups.Find(p => p.Booster).Progress == 478, "booster placement");
+            foreach(var p in pickups)if(p.Row>=0) Check(Mathf.Abs(p.Lane)>.8f && Mathf.Abs(p.Lane)<3,"straight riding misses rows; pickups remain inside road");
+            for(int row=1;row<5;row++)Check(PickupLayout.RowLane(0,row)*PickupLayout.RowLane(0,row-1)<0,"rows alternate road sides");
+            foreach(float speed in new[]{25f,RideSimulation.MaximumSpeed}) {
+                var layout=pickups.FindAll(p=>p.Row>=0); layout.Sort((a,b)=>a.Progress.CompareTo(b.Progress));
+                var rider=new RideState{Speed=speed};int collected=0;
+                for(int step=0;step<6000 && collected<layout.Count;step++) {
+                    float lane=layout[collected].Lane, before=rider.Progress, lateralBefore=rider.Lateral;
+                    rider.Speed=speed;
+                    RideSimulation.Step(rider,new RideInput {Steer=Mathf.Clamp((lane-rider.Lateral)*.85f-rider.Heading*4,-1,1)});
+                    if(rider.Progress>=layout[collected].Progress) {
+                        float fraction=Mathf.InverseLerp(before,rider.Progress,layout[collected].Progress);
+                        Check(Mathf.Abs(Mathf.Lerp(lateralBefore,rider.Lateral,fraction)-lane)<.8f,"row reachable with steering at 90 and 140 km/h");collected++;
+                    }
+                    Check(!rider.Contact,"lane changes stay off road edges");
+                }
+                Check(collected==30,"all alternating rows reachable");
+            }
             var tracker = new RowTracker(); int awards = 0;
             foreach (var p in pickups) if (tracker.Collect(p)) awards++;
             Check(awards == 5, "complete row awards"); foreach (var p in pickups) Check(!tracker.Collect(p), "no duplicate awards"); tracker.Prune(800); Check(tracker.Count == 0, "bounded row tracking");
